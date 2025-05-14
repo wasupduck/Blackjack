@@ -3,8 +3,6 @@
 
 .ORIG x3000         ; program start at x3000
 
-ST R0, PLSEED
-; Load the pointer to SEEDS into R0
 LD R0, SEEDSP      ; Load the address stored in SEEDSP into R0
 
 ; Store each register at appropriate offset from base address
@@ -17,7 +15,7 @@ STR R5, R0, #5     ; Store R5 at SEEDS+5
 
 
 AND R0, R0, #0      ; R0: load strings, store inputs
-AND R1, R1, #0      ; 
+AND R1, R1, #0      ; R1: 
 AND R2, R2, #0      ; 
 AND R3, R3, #0      ; 
 AND R4, R4, #0      ; 
@@ -120,19 +118,9 @@ AND R7, R7, #0      ;
 HALT
 
 ;pointer to set and get seeds
-PLSEED  .BLKW 1
 SEEDSP  .FILL SEEDS
-SETSEEDP    .FILL x4000
 GETSEEDP    .FILL x4020
 TSEEDP  .FILL TSEED
-SEED0P  .FILL SEED0
-SEED1P  .FILL SEED1
-SEED2P  .FILL SEED2
-SEED3P  .FILL SEED3
-SEED4P  .FILL SEED4
-SEED5P  .FILL SEED5
-SEED6P  .FILL SEED6
-SEED7P  .FILL SEED7
 
 ;pointers to strings
 PLAYERP     .FILL PLAYER
@@ -156,11 +144,6 @@ PUSHP       .FILL PUSH
 
 STSEED  .BLKW 1     ; store current seed
 CURRENT .BLKW 1     ; stores string for currently checked player/dealer
-STORER1 .BLKW 1     ; store R1
-STORER2 .BLKW 1     ; store R2
-;STORER3 .BLKW 1     ; store R3
-;STORER4 .BLKW 1     ; store R4
-;STORER5 .BLKW 1     ; store R5
 STORER6 .BLKW 1     ; store R6
 STORER7 .BLKW 1     ; store R7
 STORER7D    .BLKW 1         ;special storage block for display
@@ -188,12 +171,16 @@ Reset
     ST R1, HASWON
 
 RET
+
+
 ; new line subroutine
 NewLine
     ; R0: used to load new line char
         LD R0, NL               ; load and print newline
         TRAP x21
     RET
+    
+    
 ; this subroutine displays given card using the CARDST array with the current seed
 DisplayCard
 ; R1: loads current seed
@@ -207,7 +194,9 @@ DisplayCard
     LDR R0, R4, #0          ; load string pointed to by address in R4 to R0
     TRAP x22                ; display string
     LD R7, STORER7D
-    RET
+    
+RET
+
 
 ; This subroutine checks if the seed is between 0-12, and loops GetSeed until it is.
 GetCard
@@ -224,20 +213,18 @@ GetCard
     LD R0, GETSEEDP
     JSRR R0
     
-    LD R0, TSEEDP
-    LDR R1, R0, #0
-    ST R1, STSEED
-    AND R3, R3, #0
-            ADD R3, R1, #0
-        BRnp notace
-            
+    LD R0, TSEEDP           ; load address of seed into R0
+    LDR R1, R0, #0          ; load seed into R1
+    ST R1, STSEED           ; store in STSEED
+    AND R3, R3, #0          ; clear R3
+    ADD R3, R1, #0          ; add seed to R3
+    
+        BRnp notace         ; skips ISACEP iteration if it's not an ace (0th address location in CARDARR)
             LD R3, ISACEP
             ADD R3, R3, #1
             ST R3, ISACEP
-    
         notace
 
-    
     LEA R2, CARDARR         ; load address at CARDARR, or the integer array
     ADD R2, R2, R1          ; increment address by seed
     LDR R3, R2, #0          ; load value from address in R2 into R3
@@ -259,11 +246,6 @@ GetCard
 RET                     
 
 
-
-; This subroutine multiplies R6 by 35 in R1, adds 3, and bitmasks for 0-15, before updating itself as the new seed
-; and storing it in STSEED
-
-    
 ; This is the subroutine for the initialization loop. It reads an input and repeats until it's 'n' or 'x'
 InitLoop
 ; R0: input
@@ -309,7 +291,7 @@ InitLoop
     
     AND R0, R0, #0 
     ADD R0, R0, #1
-    ST R0, QUIT
+    ST R0, QUIT             ;adds 1 to QUIT, which branches to halt after InitLoop if 'x' is clicked
     
     equalsn
     
@@ -339,7 +321,7 @@ DisplayTotal
     AND R4, R4, #0  ; 
     AND R5, R5, #0  ; 
 
-    ADD R3, R1, #0  ; sets R3 to total
+    ADD R3, R1, #0  ; sets R3 to TOTAL
 
     ; increments tens digit value until number is less than ten
     tensloop
@@ -401,10 +383,9 @@ GameLoopD
         JSR NewLine
         JSR DisplayTotal
     
-    ;check to see if total is greater than 16
+    ;check to see if total is greater than 16, doesn't add new cards if so
         LD R1, DSTOP
         ADD R2, R6, R1
-
         BRp skiploop
         
     DealLoop
@@ -496,18 +477,28 @@ GameLoopD
     LD R5, GameLoopR5
 RET
 
+;this is the gameloop subroutine for the player. It includes some input processing.
 GameLoopP
-    ST R7, GameLoopR7    ; Use a uniquely named label
-    ST R5, GameLoopR5    ; Use a uniquely named label
-    LEA R6, PLAYER2P
+; R0: output processing
+; R1: loads pointer to TOTALST string
+; R2: holds tens digit
+; R3: holds ones digit
+; R4: used in tens digit loop
+; R5: used to store ascii value for zero
+; R6: used in tens digit loop
+; R7: used for stack, has it's own label to prevent recursive stack problems
+
+    ST R7, GameLoopR7    
+    ST R5, GameLoopR5
+    
+    LEA R6, PLAYER2P    ;sets CURRENT to PLAYER2 string
     LDR R5, R6, #0
     ST R5, CURRENT
         LD R6, TOTALP
         ST R6, TOTAL
 
 
-
-    MainLoop
+    MainLoop    ;loops back if hit and not above 21
     
         JSR NewLine
         JSR DisplayTotal
@@ -523,7 +514,7 @@ GameLoopP
         
         ADD R1, R0, #0      ; copy character into R1
         
-        LD R2, CHH          ; load address of 'n' character
+        LD R2, CHH          ; load address of 'h' character
         
         ;IF input = 'h'
         NOT R3, R2          ; bitwise NOT of R2
@@ -532,9 +523,10 @@ GameLoopP
         BRz equalsh         ; branch off if R3 is 2's compliment of R1
                             ; AKA if input = 'h'
                     
-        ;IF input = 's'
         AND R3, R3, #0
         LD R2, CHS
+        
+        ;IF input = 's'
         NOT R3, R2          ; bitwise NOT of R2
         ADD R3, R3, #1      ; R3 = -R2 (2's complement)
         ADD R3, R1, R3
@@ -551,9 +543,9 @@ GameLoopP
         TRAP x22            ; print string
         BR MainLoop         ; branch to input 1 until char equals 'h' or 's'
 
-    equalsh
+    equalsh ;branches here if 'h'
         
-        JSR GetCard
+        JSR GetCard ; gets card
 
         JSR NewLine
         LEA R1, PLAYER2P       ; load pointer
@@ -567,16 +559,17 @@ GameLoopP
         JSR DisplayCard
         
         
-        LD R1, TOTAL
-        LD R2, BJ2S
-        ADD R3, R1, R2
+        LD R1, TOTAL    ;loads total into R1
+        LD R2, BJ2S     ;loads -21
+        ADD R3, R1, R2  ;adds total to -21
             
-        BRnz MainLoop
+        BRnz MainLoop   ;loops if not positive
         
         
     ;isace stuff
+        ;checks for ace
         LD R2, ISACEP
-        BRnz losepl
+        BRnz losepl ;skips if not positive
         
         ADD R1, R1, #-10
         ST R1, TOTAL
@@ -587,6 +580,7 @@ GameLoopP
         
         losepl
         
+        ;displays "you lose"
         JSR NewLine
         JSR DisplayTotal
         JSR NewLine
@@ -686,11 +680,18 @@ LOSE    .STRINGZ "You lose!"
 WIN     .STRINGZ "You win!"
 PUSH    .STRINGZ "A tie! The hand is pushed."
 
+; I did this part last, and any more lines of code would have lead to offset problems
 .ORIG x4020
 
+; This function uses the random numbers stored at the beginning to pick a number between 0-12. For some reason, it doesn't
+; generate Jack, Queen, and King cards as often as it does Ace-10. In short, it does an XOR operation for seeds 1 and 2, an
+; ADD operation for seeds 3 and 4, and an XOR function for the results of both of those. I tried many different iterations
+; here, from simple arithmetic operations from a single seed, to a large algorithm involving 7 seeds iterating on each other
+; over and over again, but each time either it would end up looping between the same 1-6 numbers. This was the first one that
+; continually produced novel results.
+
 GETSEEDS
-    ST R7, SEEDR7
-    ST R5, SEEDR5
+    ST R7, SEEDR7   ;
 
     LEA R0, SEEDS
     LDR R1, R0, #1
@@ -701,69 +702,55 @@ GETSEEDS
     seedLoop
         NOT R1, R1
         AND R6, R1, R2
-        NOT R7, R6          ; NOT(A AND B)/A OR B
+        NOT R7, R6          ; NOT(R1 AND R2).
     
         NOT R6, R1
         NOT R5, R2
-        AND R5, R6, R5      ; A OR B
+        AND R5, R6, R5      ; NOT ((NOT R1) AND (NOT R2)). AKA R1 OR R2
+        NOT R6, R5          ; NOT (R1 OR R2)
     
-        NOT R6, R5          ; NOT (A OR B)
-    
-    AND R5, R6, R7      ; (A OR B) AND NOT (A AND B)/A XOR B
+    AND R5, R6, R7          ; (R1 OR R2) AND NOT (R1 AND R2). AKA, R1 XOR R2
     
     
-    ADD R6, R3, R4      ; C + D
+    ADD R6, R3, R4          ; R3 + R4
         
+                            ; R5 = R1 XOR R2
+                            ; R6 = R3 + R4
+        ST R3, TEMPR3       ; store R3 temporarily so that R3 can be used for XOR
         
-        ST R3, TEMPR3
 
         AND R3, R5, R6
-        NOT R4, R3          ; NOT(R5 AND R6)/R5 OR R6
+        NOT R4, R3          ; NOT(R5 AND R6)
     
         NOT R3, R5
         NOT R7, R6
-        AND R7, R4, R7      ; A OR B
-    
-        NOT R3, R5          ; NOT (A OR B)
+        AND R7, R4, R7      ; R5 OR R6
+        NOT R3, R5          ; NOT (R5 OR R6)
         
-    AND R7, R6, R4      ; (R5 OR R6) AND NOT (R5 AND R6)/R5 XOR R6
+    AND R7, R6, R4          ; (R5 OR R6) AND NOT (R5 AND R6). AKA, R5 XOR R6
     
+    LD R3, TEMPR3           ; load R3
     
-    
-    LD R3, TEMPR3
-    
-    STR R2, R0, #1
-    STR R3, R0, #2
-    STR R4, R0, #3
-    STR R7, R0, #4
+    STR R2, R0, #1          ;store R2 at SEED+1
+    STR R3, R0, #2          ;store R3 at SEED+2
+    STR R4, R0, #3          ;store R4 at SEED+3
+    STR R7, R0, #4          ;store R7 at SEED+4
     
     
     AND R7, R7, #15     ; R7 mod 15
-    ADD R0, R5, #-13
+    ADD R0, R7, #-13
     BRp seedLoop
     
-    ST R7, TSEED
+    ST R7, TSEED        ; Store seed in TSEED
 
     LD R7, SEEDR7
-    LD R5, SEEDR5
 
 RET
 
 TEMPR3    .BLKW 1
 TSEED   .BLKW 1
 SEEDR7  .BLKW 1
-SEEDR5  .BLKW 1
 SEEDS   .BLKW 8
-SEEDV   .BLKW 1
-SIZE    .FILL #3
-SEED0   .BLKW 1
-SEED1   .BLKW 1
-SEED2   .BLKW 1
-SEED3   .BLKW 1
-SEED4   .BLKW 1
-SEED5   .BLKW 1
-SEED6   .BLKW 1
-SEED7   .BLKW 1
 
 ADDY1   .BLKW 1
 ADDY2   .BLKW 1
