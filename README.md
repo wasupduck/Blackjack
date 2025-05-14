@@ -12,3 +12,5 @@ Here is the link: **[LC3Tools](http://highered.mheducation.com/sites/0072467509/
 ## Special Requirements
 
 After you assemble the program, you will need to hit randomize machine, and then reload object files before running it.
+
+<img width="536" alt="Screenshot 2025-05-14 at 11 15 01 AM" src="https://github.com/user-attachments/assets/a8da6e6e-fab3-4527-8c91-749ac1d9a82c" />
