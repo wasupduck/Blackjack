@@ -13,4 +13,6 @@ Here is the link: **[LC3Tools](http://highered.mheducation.com/sites/0072467509/
 
 After you assemble the program, you will need to hit randomize machine, and then reload object files before running it.
 
+I'm not exactly sure why, but this program can break without warning. Pausing and playing it usually fixes the issue. If that doesn't work, try restarting the program or LC3Tools. I assume it has something to do with the size of the program I've written, but it might be a flaw in the code. It's hard to trace when exactly it's breaking.
+
 <img width="536" alt="Screenshot 2025-05-14 at 11 15 01 AM" src="https://github.com/user-attachments/assets/a8da6e6e-fab3-4527-8c91-749ac1d9a82c" />
