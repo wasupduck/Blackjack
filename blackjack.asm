@@ -8,23 +8,22 @@ ST R0, PLSEED
 LD R0, SEEDSP      ; Load the address stored in SEEDSP into R0
 
 ; Store each register at appropriate offset from base address
-STR R1, R0, #0     ; Store R1 at SEEDS+0
-STR R2, R0, #1     ; Store R2 at SEEDS+1
-STR R3, R0, #2     ; Store R3 at SEEDS+2
-STR R4, R0, #3     ; Store R4 at SEEDS+3
-STR R5, R0, #4     ; Store R5 at SEEDS+4
-STR R6, R0, #6     ; Store R6 at SEEDS+5
-STR R7, R0, #7     ; Store R7 at SEEDS+6
+; For whatever reason, SEEDSP points to the address before the SEEDS address space, so there's an offset
+STR R1, R0, #1     ; Store R1 at SEEDS+1
+STR R2, R0, #2     ; Store R2 at SEEDS+2
+STR R3, R0, #3     ; Store R3 at SEEDS+3
+STR R4, R0, #4     ; Store R4 at SEEDS+4
+STR R5, R0, #5     ; Store R5 at SEEDS+5
 
 
 AND R0, R0, #0      ; R0: load strings, store inputs
-AND R1, R1, #0      ; R1: length of string
-AND R2, R2, #0      ; R2: conversion (decimal, ASCII, case)
-AND R3, R3, #0      ; R3: test if character is lowercase
-AND R4, R4, #0      ; R4: memory address for characters
-AND R5, R5, #0      ; R5: memory address for characters
-AND R6, R6, #0
-AND R7, R7, #0                    
+AND R1, R1, #0      ; 
+AND R2, R2, #0      ; 
+AND R3, R3, #0      ; 
+AND R4, R4, #0      ; 
+AND R5, R5, #0      ; 
+AND R6, R6, #0      ; R6: store player total
+AND R7, R7, #0      ;           
 
     NewRound
 
@@ -164,9 +163,9 @@ STORER2 .BLKW 1     ; store R2
 ;STORER5 .BLKW 1     ; store R5
 STORER6 .BLKW 1     ; store R6
 STORER7 .BLKW 1     ; store R7
-STORER7D    .BLKW 1
-GameLoopR7  .BLKW 1        ; Reserve space for R7
-GameLoopR5  .BLKW 1        ; Reserve space for R5
+STORER7D    .BLKW 1         ;special storage block for display
+GameLoopR7  .BLKW 1         ; Reserve space for R7
+GameLoopR5  .BLKW 1         ; Reserve space for R5
 TOTAL   .BLKW 1     ; store current total
 TOTALP  .BLKW 1     ; store player total
 TOTALD  .BLKW 1     ; store dealer total
@@ -176,10 +175,11 @@ HIDDEN  .BLKW 1     ; store hidden card for dealer
 HASWON  .BLKW 1     ; check to see if player has won
 QUIT    .BLKW 1     ; check to see if player wants to quit
 ISACEP   .BLKW 1     ; check to see if there is an ace
-ISACED   .BLKW 1     ; check to see if there is an ace
 
 
+; this subroutine resets totals after each round
 Reset
+    ; R1: zero, used to reset each total
     
     AND R1, R1, #0
     ST R1, TOTAL
@@ -190,14 +190,16 @@ Reset
 RET
 ; new line subroutine
 NewLine
-
-    ;ST R7, STORER7
+    ; R0: used to load new line char
         LD R0, NL               ; load and print newline
         TRAP x21
-   ; LD R7, STORER7
     RET
-    
+; this subroutine displays given card using the CARDST array with the current seed
 DisplayCard
+; R1: loads current seed
+; R4: loads address, increments by seed and displays incremented address
+; R7: sometimes broke the game when called, so R7 is stored at beginning and loaded at end
+
     ST R7, STORER7D
     LEA R4, CARDST          ; load address at CARDST, the string array
     LD R1, STSEED           ; load current seed
@@ -209,11 +211,16 @@ DisplayCard
 
 ; This subroutine checks if the seed is between 0-12, and loops GetSeed until it is.
 GetCard
-    
+; R0: loads address pointed by TSEEDP
+; R1: loads seed from TSEEDP/STSEED
+; R2: loads address at CARDARR and increments to seeded card
+; R3: loads card value and stores in CARD label
+; R4: loads address for card strings
+; R6: loads total, adds card value to total and saves it
+; R7: needed for stack
+
     ST R7, STORER7          ; for whatever reason, R7 was pointing to the 'ADD R4, R4, R1' whenever the RET command was
                             ; used, so I fixed it by storing the return address and loading it back into R7 at the end
-    
-    
     LD R0, GETSEEDP
     JSRR R0
     
@@ -257,8 +264,14 @@ RET
 ; and storing it in STSEED
 
     
-; This is the subroutine for the initialization loop. It reads an input and repeats until it's 'n'
+; This is the subroutine for the initialization loop. It reads an input and repeats until it's 'n' or 'x'
 InitLoop
+; R0: input
+; R1: reads input from R0
+; R2: loads characters to be compared to input
+; R3: compares inputs here
+; R7: needed for stack
+
     ST R7, STORER7
     input1
         TRAP x20            ; read input into R0
@@ -304,8 +317,15 @@ InitLoop
 
 RET
     
-    
+;displays total for players by logically finding tens and ones and outputting them consecutively
 DisplayTotal
+; R0: loads currently used string to be displayed (so this function can be used by dealer and player) and outputs digits
+; R1: loads pointer to TOTALST string
+; R2: holds tens digit
+; R3: holds ones digit
+; R4: used in tens digit loop
+; R5: used to store ascii value for zero
+
     LD R0, CURRENT
     TRAP X22
     
@@ -313,11 +333,11 @@ DisplayTotal
     LDR R0, R1, #0          ; point to TOTALST
     TRAP x22
     
-    LD R1, TOTAL    ; current total
-    AND R2, R2, #0  ; tens digit
-    AND R3, R3, #0  ; ones digit
-    AND R4, R4, #0  ; used in tens digit loop
-    AND R5, R5, #0  ; used to store ascii value for zero
+    LD R1, TOTAL
+    AND R2, R2, #0
+    AND R3, R3, #0
+    AND R4, R4, #0  ; 
+    AND R5, R5, #0  ; 
 
     ADD R3, R1, #0  ; sets R3 to total
 
@@ -347,7 +367,18 @@ DisplayTotal
         TRAP x21            ; print ones digit
 RET
 
+
+;this is the gameloop subroutine for the dealer. There's a couple differences, most notably the lack of input processing.
 GameLoopD
+; R0: output processing
+; R1: loads pointer to TOTALST string
+; R2: holds tens digit
+; R3: holds ones digit
+; R4: used in tens digit loop
+; R5: used to store ascii value for zero
+; R6: used in tens digit loop
+; R7: used for stack, has it's own label to prevent recursive stack problems
+
     ST R7, GameLoopR7    ; Use a uniquely named label
     ST R5, GameLoopR5    ; Use a uniquely named label
     LEA R6, DEALER2P
@@ -410,7 +441,7 @@ GameLoopD
         BRnz skiploop
 
         LD R2, ISACEP
-        BRnp goon
+        BRnz goon
         
             ADD R1, R1, #-10
             ST R1, TOTAL
